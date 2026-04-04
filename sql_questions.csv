@@ -1,0 +1,51 @@
+id,level,question
+1,Easy,What is SQL?
+2,Easy,What is a database?
+3,Easy,What is a table?
+4,Easy,What is a record?
+5,Easy,What is a column?
+6,Easy,What is a query?
+7,Easy,What is a primary key?
+8,Easy,What is a foreign key?
+9,Easy,What is NULL?
+10,Easy,What are constraints?
+11,Easy,What is UNIQUE constraint?
+12,Easy,What is NOT NULL constraint?
+13,Easy,What is DEFAULT constraint?
+14,Easy,What is INDEX?
+15,Easy,What is a view?
+16,Easy,What is GROUP BY?
+17,Easy,What is ORDER BY?
+18,Easy,What is DISTINCT?
+19,Easy,What are aggregate functions?
+20,Easy,What is WHERE clause?
+21,Medium,What is the difference between WHERE and HAVING?
+22,Medium,What is the difference between DELETE and TRUNCATE?
+23,Medium,What is the difference between DROP and TRUNCATE?
+24,Medium,What is the difference between PRIMARY KEY and UNIQUE?
+25,Medium,What is the difference between INNER JOIN and LEFT JOIN?
+26,Medium,What is the difference between LEFT JOIN and RIGHT JOIN?
+27,Medium,What is the difference between UNION and UNION ALL?
+28,Medium,What is normalization?
+29,Medium,What are the normal forms?
+30,Medium,What is a subquery?
+31,Medium,What is the difference between subquery and JOIN?
+32,Medium,What is EXISTS in SQL?
+33,Medium,What is IN operator?
+34,Medium,What is the difference between IN and EXISTS?
+35,Medium,What is an alias in SQL?
+36,Medium,What is a self join?
+37,Medium,What is referential integrity?
+38,Medium,What is a composite key?
+39,Medium,What is a clustered index?
+40,Medium,What is a non-clustered index?
+41,Hard,What are window functions?
+42,Hard,What is ROW_NUMBER()?
+43,Hard,What is RANK()?
+44,Hard,What is DENSE_RANK()?
+45,Hard,What is a CTE?
+46,Hard,What is a recursive CTE?
+47,Hard,What are isolation levels?
+48,Hard,What is a deadlock?
+49,Hard,What is query optimization?
+50,Hard,What is a trigger?

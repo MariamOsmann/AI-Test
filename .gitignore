@@ -1,0 +1,20 @@
+# Secret keys - never upload
+.env
+
+# Auto-generated files
+interview.db
+interview_log.txt
+state.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+
+# Virtual environment
+.venv/
+venv/
