@@ -25,7 +25,7 @@ def start_interview(student_name: str):
     session_id = str(uuid.uuid4())
 
     def run():
-        run_interview(student_name, session_id)
+        run_interview(student_name)
 
     threading.Thread(target=run, daemon=True).start()
 
