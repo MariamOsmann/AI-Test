@@ -6,15 +6,12 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-import google.generativeai as genai
+from google import genai
 from database import get_questions
-from shared import answers_store
 from dotenv import load_dotenv
 load_dotenv()  # بيقرأ الـ .env تلقائياً
-from database import init_db
-
 # ============================================================
-#   AI SQL INTERVIEWER  —  Question Delivery
+#   AI SQL INTERVIEWER  —  Person 1: Question Delivery
 # ============================================================
 
 
@@ -40,16 +37,11 @@ def get_time_limit(level):
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 try:
-    if GEMINI_API_KEY:
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        print("  [AI]  Gemini ready ✅")
-    else:
-        print("  [WARN] No API key — using random mode")
-        model = None
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    print("  [AI]  Gemini ready ✅")
 except Exception as e:
     print(f"  [WARN]  Gemini not available — using smart random.")
-    model = None
+    client = None
 
 # ─── Terminal UI ──────────────────────────────────────────
 RESET  = "\033[0m"
@@ -111,17 +103,16 @@ def ai_pick_question(df, used_ids, level, history, results):
     if pool.empty:
         pool = df
 
-    if not model:
-        return pool.sample(1).iloc[0], "random"
+    if not client:
+        return pool.sample(1).iloc[0], ""
 
-    try:
-        available   = pool["question"].astype(str).tolist()
-        history_str = ", ".join(history) if history else "None yet"
-        performance = ", ".join([
-            f"{r['level']}:{round(r['elapsed'], 1)}s" for r in results
-        ]) if results else "No data yet"
+    available   = pool["question"].tolist()
+    history_str = ", ".join(history) if history else "None yet"
+    performance = ", ".join([
+        f"{r['level']}:{round(r['elapsed'], 1)}s" for r in results
+    ]) if results else "No data yet"
 
-        prompt = f"""
+    prompt = f"""
 You are an AI SQL interviewer assistant.
 
 Student level: {level}
@@ -129,49 +120,48 @@ Previous performance: {performance}
 Questions already asked: {history_str}
 Available questions: {json.dumps(available)}
 
-Choose the BEST next question.
+Choose the BEST next question for the student based on their performance.
+Reply exactly in this format:
 
-Format:
-QUESTION: <text>
-REASON: <short>
+QUESTION: <exact question text>
+REASON: <short reason>
 """
 
-        response = model.generate_content(prompt)
-
-        if not response or not response.text:
-            raise Exception("Empty response")
-
-        content = response.text.strip()
-
+    try:
+        response      = client.models.generate_content(
+            model="gemini-2.0-flash-lite",
+            contents=prompt
+        )
+        content       = response.text.strip()
         question_line = ""
-        reason_line = ""
+        reason_line   = ""
 
         for line in content.splitlines():
-            if line.lower().startswith("question:"):
+            line_clean = line.strip().lower()
+            if line_clean.startswith("question:"):
                 question_line = line.split(":", 1)[1].strip()
-            elif line.lower().startswith("reason:"):
+            elif line_clean.startswith("reason:"):
                 reason_line = line.split(":", 1)[1].strip()
 
-        chosen_clean = question_line.lower().replace("?", "").replace(".", "")
-
-        pool_clean = (
+        chosen_clean = question_line.strip().lower().replace("?", "").replace(".", "")
+        pool_clean   = (
             pool["question"]
-            .astype(str)
-            .str.lower()
+            .str.strip().str.lower()
             .str.replace("?", "", regex=False)
             .str.replace(".", "", regex=False)
         )
 
         match = pool[pool_clean == chosen_clean]
-
         if not match.empty:
-            _log("AI", reason_line)
+            if reason_line:
+                _log("AI", reason_line)
             return match.iloc[0], reason_line
 
     except Exception as e:
-        _log("WARN", f"AI failed → random fallback")
+        _log("WARN", f"Gemini error — using smart random")
 
-    return pool.sample(1).iloc[0], "fallback"
+    return pool.sample(1).iloc[0], ""
+
 # ─── TTS ──────────────────────────────────────────────────
 def setup_speaker():
     try:
@@ -196,9 +186,8 @@ def speak(spk, text):
         _log("WARN", f"TTS error: {e}")
 
 # ─── State File ───────────────────────────────────────────
-def write_state(status, q_num=0, question="", level="", name="", session_id=""):
+def write_state(status, q_num=0, question="", level="", name=""):
     state = {
-        "session_id":  session_id,
         "status":       status,
         "question_num": q_num,
         "question":     question,
@@ -263,19 +252,7 @@ def get_answer(spk, question, q_num, level, time_limit):
 
         timer_thread.start()
         start  = time.perf_counter()
-        student_name = Path(STATE_FILE).read_text()
-        student_name = json.loads(student_name).get("student_name")
-
-        start = time.perf_counter()
-
-        while student_name not in answers_store:
-            time.sleep(1)
-
-        answer = answers_store.pop(student_name)
-
-        elapsed = time.perf_counter() - start
-        total_elapsed += elapsed
-        remaining_time = max(0, remaining_time - elapsed)
+        answer = input(f"  {CYAN}>{RESET}  ").strip()
 
         stop_event.set()
         timer_thread.join()
@@ -322,7 +299,6 @@ def load_questions():
     try:
         df = get_questions()
         df["level"] = df["level"].str.capitalize()
-        df["question"] = df["question"].astype(str)
         if df.empty:
             _banner("No questions in CSV", "red")
             sys.exit(1)
@@ -359,7 +335,7 @@ def print_summary(name, total_time, results):
     print(f"  {DIM}{'─' * 56}{RESET}\n")
 
 # ─── Main ─────────────────────────────────────────────────
-def run_interview(student_name: str = None, session_id: str = None):
+def run_interview(student_name: str = None):
     spk           = setup_speaker()
     df            = load_questions()
     total         = 5
@@ -440,21 +416,11 @@ def run_interview(student_name: str = None, session_id: str = None):
 
     total_time = time.perf_counter() - interview_start
     write_state("done", q_num, "", "", name)
-
     _banner("INTERVIEW FINISHED", "green")
     speak(spk, f"The interview is finished. Thank you {name} for your time.")
-
     print_summary(name, total_time, results)
     _log("INFO", f"Log saved to {WHITE}{LOG_FILE}{RESET}")
 
-
-    return {
-        "name": name,
-        "total_time": total_time,
-        "results": results
-    }
-
 # ─── Entry Point ──────────────────────────────────────────
 if __name__ == "__main__":
-    init_db()
     run_interview()
