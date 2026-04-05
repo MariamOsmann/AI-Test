@@ -186,8 +186,9 @@ def speak(spk, text):
         _log("WARN", f"TTS error: {e}")
 
 # ─── State File ───────────────────────────────────────────
-def write_state(status, q_num=0, question="", level="", name=""):
+def write_state(status, q_num=0, question="", level="", name="", session_id=""):
     state = {
+        "session_id":   session_id,
         "status":       status,
         "question_num": q_num,
         "question":     question,
@@ -198,6 +199,7 @@ def write_state(status, q_num=0, question="", level="", name=""):
     Path(STATE_FILE).write_text(
         json.dumps(state, indent=2, ensure_ascii=False)
     )
+
 
 # ─── Log ──────────────────────────────────────────────────
 def save_log(name, q_num, question, level, answer, elapsed, adapted, reason):
@@ -335,7 +337,8 @@ def print_summary(name, total_time, results):
     print(f"  {DIM}{'─' * 56}{RESET}\n")
 
 # ─── Main ─────────────────────────────────────────────────
-def run_interview(student_name: str = None):
+def run_interview(student_name: str = None, session_id: str = ""):
+
     spk           = setup_speaker()
     df            = load_questions()
     total         = 5
@@ -347,7 +350,7 @@ def run_interview(student_name: str = None):
 
     _banner("AI SQL INTERVIEWER", "cyan")
     speak(spk, "Welcome to your SQL technical interview.")
-    write_state("idle")
+    write_state("idle", session_id=session_id)
 
     # لو جاي من الـ API بياخد الاسم منه، لو من الـ terminal بيسأل
     if student_name:
@@ -381,17 +384,17 @@ def run_interview(student_name: str = None):
 
         _question_card(q_num, total, level, question)
 
-        write_state("waiting",   q_num, question, level, name)
+        write_state("waiting", q_num, question, level, name, session_id)
         speak(spk, f"Question {q_num}. {question}")
 
         time_limit = get_time_limit(level)
 
         speak(spk, f"You have {time_limit} seconds to answer.")
-        write_state("recording", q_num, question, level, name)
+        write_state("recording", q_num, question, level, name, session_id)
 
         answer, elapsed = get_answer(spk, question, q_num, level, time_limit)
 
-        write_state("waiting", q_num, question, level, name)
+        write_state("waiting", q_num, question, level, name, session_id)
 
         current_level, arrow, adapted = get_next_level(current_level, elapsed)
 
@@ -415,7 +418,7 @@ def run_interview(student_name: str = None):
             time.sleep(2)
 
     total_time = time.perf_counter() - interview_start
-    write_state("done", q_num, "", "", name)
+    write_state("done", q_num, "", "", name, session_id)
     _banner("INTERVIEW FINISHED", "green")
     speak(spk, f"The interview is finished. Thank you {name} for your time.")
     print_summary(name, total_time, results)
